@@ -1,0 +1,125 @@
+---
+title: "Lab3"
+author: "Bingying Liu"
+date: "2/3/2020"
+output: html_document
+---
+
+```{r setup, message=F, warning=F,include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(rstanarm)
+library(magrittr)
+library(rstan)
+library(bayesplot)
+library(loo)
+library(readxl)
+```
+
+
+### Exericise 1: Plot a histogram of the death counts.
+```{r}
+GoT <- read_xlsx("GoT_Deaths.xlsx", col_names = T)
+hist(GoT$Count)
+```
+
+
+### Exercise 2: Plot the smoothed posterior distribution for λ with a 90% Highest Posterior Density region.
+```{r}
+y <- GoT$Count
+n <- length(y)
+
+# Poisson Model
+stan_dat <- list(y = y, N = n)
+fit <- stan("lab-03-poisson-simple.stan", data = stan_dat, refresh = 0, chains = 2)
+lambda_draws <- as.matrix(fit, pars = "lambda") 
+
+mcmc_areas(lambda_draws, prob = 0.9)
+print(fit, pars = "lambda")
+```
+
+
+### Exercise 3: Generate posterior predictive samples using the posterior values 
+```{r}
+y_rep <- apply(lambda_draws, 1, function(x){rpois(n = n, lambda = x)}) %>% t()
+```
+
+```{r}
+# compare the empirical distribution of data y to distribution of simulated date
+ppc_hist(y, y_rep[1:8, ], binwidth = 1)
+# compare density estimates
+ppc_dens_overlay(y, y_rep[1:60, ])
+
+# compare proportion of zeros
+prop_zero <- function(x){
+  mean(x == 0)
+} 
+prop_zero(y)
+ppc_stat(y, y_rep, stat = "prop_zero")
+
+# plot the means and variances for all of simulated datasets
+ppc_stat_2d(y, y_rep, stat = c("mean", "var"))
+# plot predicted errors
+ppc_error_hist(y, y_rep[1:4, ], binwidth = 1) + xlim(-15, 15)
+```
+
+### Exercise 4: Based on these PPCs, does this model appear to be a good fit for the data?
+No,  thie model doesn't model 0s as in oberserved data. From histogram, density estimate, proportion of zeros plots, we can all see that there are many more 0-valued observations in the observed data than there are in the simulated data. And the error plot shows significantly larger difference between y and y_rep around 0.
+
+### Exercise 5: Using the code provided for the simple Poisson model, simulate draws from the posterior density of λ with the “Poisson Hurdle” model.
+```{r}
+fit2 <- stan("lab-03-poisson-hurdle.stan", data = stan_dat, refresh = 0, chains = 2)
+lambda_draws2 <- as.matrix(fit2, pars = "lambda")
+
+lambdas <- cbind(lambda_fit1 = lambda_draws[, 1],
+                 lambda_fit2 = lambda_draws2[, 1])
+
+# Shade 90% interval
+mcmc_areas(lambdas, prob = 0.9) 
+```
+
+### Exercise 6: Produce the same PPC vizs as before for the new results. Comment on how this second model compares to both the observed data and to the simple Poisson model.
+```{r}
+y_rep2 <- as.matrix(fit2, pars = "y_rep")
+
+ppc_hist(y, y_rep2[1:8, ], binwidth = 1) 
+ppc_dens_overlay(y, y_rep2[1:60, ])
+
+prop_zero <- function(x){
+  mean(x == 0)
+} 
+prop_zero(y)
+ppc_stat(y, y_rep2, stat = "prop_zero")
+
+ppc_stat_2d(y, y_rep2, stat = c("mean", "var"))
+ppc_error_hist(y, y_rep2[1:4, ], binwidth = 1) + xlim(-15, 15)
+```
+
+The second model is better at modelling 0-valued observations than the simple Poisson model. Distribution plot of both empirical and posterior predictive data shows peak at 0; density estimate for several y_rep has a similar curvature around 0; empirical proportion of 0 lies in the all of the posterior predictive proportions of 0 with similar height; mean and variance point of the observed statistics also lies in the posterior predictive point cloud; difference between y and yrep decreases at 0 in error plot.
+
+### Exercise 7: Which model performs better in terms of prediction?
+```{r}
+## Leave-one-out cross-validation
+log_lik1 <- extract_log_lik(fit, merge_chains = FALSE) 
+r_eff1 <- relative_eff(exp(log_lik1)) 
+(loo1 <- loo(log_lik1, r_eff = r_eff1))
+
+log_lik2 <- extract_log_lik(fit2, merge_chains = FALSE)
+r_eff2 <- relative_eff(exp(log_lik2)) 
+(loo2 <- loo(log_lik2, r_eff = r_eff2))
+compare(loo1, loo2)
+```
+
+Second model performs better since its point estimate of elpd_loo is lower and standard error is lower than first model as well.
+
+### Exercise 8: Why are PPCs important?
+We use posterior predictice checks to look for systematic discrepancies between real and simulated data. Therefore, PPCs are important.
+
+### Exercise 9: Was the second model a good fit for the data? Why or why not?
+The second model is a good fit for the data although it's not a perfect fit. From the density estimate plot, we can see that from value 5-15, density estimate of the observed has some wave-like characteristics while posterior predictive density estimate doesn't have. Therefore, there's potential for improvement.
+
+### Exercise 10: If someone reported a single LOOCV error to you, would that be useful? Why or why not?
+The result will be kind of biased, because predictive error is completely determined by the quality of one validation point, and the performance of one point couldn't determine performance of the model on other unseen data. So this will not be as useful.
+
+
+

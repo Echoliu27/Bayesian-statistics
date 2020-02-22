@@ -1,0 +1,97 @@
+---
+title: "Lab2"
+author: "Bingying Liu"
+date: "1/27/2020"
+output: html_document
+---
+
+```{r setup, message=F, warning=F,include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(broom)
+library(tidyverse)
+library(rstanarm)
+library(magrittr)
+library(rstan)
+library(reshape)
+library(zeallot)
+```
+
+### Exericise 1: Plot a histogram of θ from the rstan object called pool_output. Describe the distribution.
+```{r}
+tumors <- read.csv(file = url("http://www.stat.columbia.edu/~gelman/book/data/rats.asc"),
+                   skip = 2, header = T, sep = " ")[,c(1,2)]
+y <- tumors$y
+N <- tumors$N
+n <- length(y)
+
+# pool data
+stan_dat <- list(n = n, N = N, y =y, a = 1, b = 1)
+fit_pool <- stan('lab-02-pool.stan', data = stan_dat, chains = 2, refresh = 0)
+pool_output <- rstan::extract(fit_pool)
+mean(pool_output$theta)
+
+# histogram
+hist(pool_output$theta)
+```
+
+The distribution of pooled theta is approximately normal and centered around posterior mean which is 0.1536.
+
+### Exercise 2: Visualize the posterior distribution of θi
+```{r}
+# nopool data
+stan_dat <- list(n = n, N = N, y =y, a = 1, b = 1)
+fit_nopool <- stan('lab-02-nopool.stan', data = stan_dat, chains = 2, refresh = 0)
+nopool_output <- rstan::extract(fit_nopool)
+apply(nopool_output$theta,2,mean)
+
+# boxplot of theta_i
+nopool_df <- stack(as.data.frame(nopool_output$theta))
+ggplot(nopool_df) + 
+  geom_boxplot(aes(x = ind, y = values))+
+  ylab('density')+
+  xlab(expression(theta))
+
+```
+
+Different posterior distributions of $\theta_i$ are plotted here. Since different group of rats have different probabilities of developing tumor, the sampling distributions for each group are different and give noninformative prior, the posterior distribution comes entirely from data. Each point in the boxplot represents outliers, which are 1.5*IQR (quantile) away from the box.
+
+### Exercise 3: How are the two stan files different?
+Since in unpooled data, we assume different groups of rats have different probabilities of developing tumor while we assume same probabilities in pooled data. Below is what is shown in two stan files.
+
+In nopool stan,
+parameters { 
+  vector<lower=0, upper=1>[n] theta;  // chance of success (unpooled) 
+} 
+
+In pool stan,
+parameters { 
+  real<lower=0, upper=1> theta;  // chance of success (pooled) 
+} 
+
+### Exercise 4: What observable quantity do the parameter a and b represent about our prior beliefs?
+'a' represents the number of rats that have developed cancer in prior samples while 'b' represents the number of rats that haven't developed cancer in prior samples.
+
+### Exercise 5: What do we actually observe in the rat tumor data with respect to these quantities?
+We observe in the posterior there are 'a + sum of (yi)' rats that have developed cancer and 'b + n - sum of (yi)' rats that haven't developed cancer.
+
+
+### Exercise 6: How well do our different prior beliefs – the ones represented by the different parameter settings above – match up with the data?
+Posterior distribution will center around prior mean (a/b) if dataset is small (prior has a strong influence to posterior) whereas if dataset is large, posterior distribution will center around sample mean.
+
+
+### Exercise 7: Why might we have observed such a difference between the two approaches when using the prior Beta(1,1)? Consider calculating the MLEs for θ and θi and comparing these values to the values obtained with the Bayesian approach:
+
+We observed such a difference between pool and nopool approach because their underlying sampling distributions are different.
+
+```{r}
+# approach 1
+mle.1 <- sum(y)/sum(N)
+mle.1
+# approach 2
+mle.2 <- y/N #
+mle.2
+```
+
+The posterior mean values of bayesian approach and MLE are the same because of the noninformative prior. MLE only takes into account data not prior, but since prior is a uniform distribution, so the results for bayesian and MLE approach are the same.
+
+

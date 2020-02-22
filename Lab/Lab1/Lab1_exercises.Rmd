@@ -1,0 +1,101 @@
+---
+title: "Lab Report 1"
+author: "Bingying Liu"
+date: "January 13, 2019"
+output: html_document
+---
+
+```{r setup, message=F, warning=F, echo=F}
+library(tidyverse)
+library(ggdark)
+require(magrittr)
+require(plyr)
+ggplot2::theme_set(ggplot2::theme_bw())
+knitr::opts_chunk$set(fig.align = 'center')
+```
+
+***
+
+## Exercise 1
+
+Create a code chunk and set the header parameter to TRUE and print out the top rows of the table with head() as above.
+
+
+```{r}
+data <- read.table(file = url("http://www2.stat.duke.edu/~pdh10/FCBS/Exercises/azdiabetes.dat"), header = TRUE)
+head(data)
+```
+
+
+## Exercise 2
+
+Generate a sequence of 100 equispaced real numbers from 0 to 1 and store it in a variable called seq2.
+
+```{r}
+seq2 <- seq(from = 0, to = 1, length.out = 101)
+seq2
+```
+
+## Exercise 3
+
+Sort the entries in seq3 from greatest to least.s
+
+```{r}
+seq3 <- seq(from = -3, to = 3, by = .5)
+seq3 <- sort(seq3, decreasing = TRUE)
+seq3
+```
+
+## Exercise 4
+
+Find the variance of each row of mat5.
+
+```{r}
+# generate large matrix
+mat5 <- matrix(seq(1,100,1), nrow = 4, ncol = 25, byrow = T)
+apply(X= mat5, MARGIN = 1, FUN = var)
+
+```
+
+## Exercise 5
+
+Generate 500 samples from a Beta distribution with shape parameter [a,b]=[0.5,0.5] and store the samples in a variable called W.
+
+```{r}
+w <- rbeta(500, shape1 = 0.5, shape2 = 0.5)
+```
+
+
+## Exercise 6
+
+Browse online resources (some below), or use code from above to make a few plots of your own.
+
+I used the mpg dataset (which is the fuel economy data from 1999 and 2008) to create some plots using ggplot darkmode.
+
+```{r, message = F}
+p <- ggplot(mpg) + 
+  geom_point(aes(cty, hwy, color = class)) + 
+  scale_y_continuous() +
+  guides(color = guide_legend(reverse = TRUE)) +
+  labs(title = "Highway fuel efficiency by City fuel efficiency and Type of car",
+       x = "City fuel efficiency (miles per gallon)",
+       y = "Highway fuel Efficiency (miles per gallon)",
+       color = "Class")
+
+p + dark_theme_gray() 
+```
+
+
+```{r}
+p <- ggplot(mpg) + 
+  geom_boxplot(aes(trans, hwy, color = trans)) + 
+  coord_flip() +
+  guides(color = guide_legend(reverse = TRUE)) +
+  labs(title = "Highway fuel efficiency by type of transmission",
+       x = "Type of transmission",
+       y = "Highway fuel Efficiency (miles per gallon)")
+
+p + dark_theme_gray() 
+```
+***
+
