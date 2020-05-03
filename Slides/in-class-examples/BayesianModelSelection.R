@@ -95,7 +95,7 @@ plot(coef(Data_bas), subset=2:8,ask=T)
 
 ######## Performs Bayesian simultaneous variable selection and outlier identification
 #library(BMA)
-Data_bma <- MC3.REG(COST, as.matrix(Data[, -1]),num.its=10000,outliers=TRUE, 
+Data_bma <- MC3.REG(Data[, 1], as.matrix(Data[, -1]),num.its=10000,outliers=TRUE, 
                    M0.out=rep(FALSE, 29), outs.list=1:29, M0.var=rep(TRUE,7))
 summary(Data_bma)
 
